@@ -62,13 +62,16 @@ class PrototypicalNet(nn.Module):
         k = total_classes.shape[0]
         K = np.random.choice(total_classes, Nc, replace=False)
         Query_x = torch.Tensor()
-        if(self.gpu):
+
+        if self.gpu:
             Query_x = Query_x.cuda()
+
         Query_y = []
         Query_y_count = []
         centroid_per_class = {}
         class_label = {}
         label_encoding = 0
+
         for cls in K:
             S_cls, Q_cls = self.random_sample_cls(datax, datay, Ns, Nq, cls)
             centroid_per_class[cls] = self.get_centroid(S_cls, Nc)
@@ -78,9 +81,10 @@ class PrototypicalNet(nn.Module):
             Query_x = torch.cat((Query_x, Q_cls), 0)
             Query_y += [cls]
             Query_y_count += [Q_cls.shape[0]]
-        Query_y, Query_y_labels = self.get_query_y(
-            Query_y, Query_y_count, class_label)
+
+        Query_y, Query_y_labels = self.get_query_y(Query_y, Query_y_count, class_label)
         Query_x = self.get_query_x(Query_x, centroid_per_class, Query_y_labels)
+
         return Query_x, Query_y
 
     def random_sample_cls(self, datax, datay, Ns, Nq, cls):
@@ -114,8 +118,7 @@ class PrototypicalNet(nn.Module):
             labels += [Qy[i]] * Qyc[i]
         labels = np.array(labels).reshape(len(labels), 1)
         label_encoder = LabelEncoder()
-        Query_y = torch.Tensor(
-            label_encoder.fit_transform(labels).astype(int)).long()
+        Query_y = torch.Tensor(label_encoder.fit_transform(labels).astype(int)).long()
         if self.gpu:
             Query_y = Query_y.cuda()
         Query_y_labels = np.unique(labels)
@@ -126,38 +129,43 @@ class PrototypicalNet(nn.Module):
         Returns the centroid matrix where each column is a centroid of a class.
         """
         centroid_matrix = torch.Tensor()
-        if(self.gpu):
-            centroid_matrix = centroid_matrix.cuda()
-        for label in Query_y_labels:
-            centroid_matrix = torch.cat(
-                (centroid_matrix, centroid_per_class[label]))
+
         if self.gpu:
             centroid_matrix = centroid_matrix.cuda()
+
+        for label in Query_y_labels:
+            centroid_matrix = torch.cat((centroid_matrix, centroid_per_class[label]))
+
+        if self.gpu:
+            centroid_matrix = centroid_matrix.cuda()
+
         return centroid_matrix
 
     def get_query_x(self, Query_x, centroid_per_class, Query_y_labels):
         """
         Returns distance matrix from each Query image to each centroid.
         """
-        centroid_matrix = self.get_centroid_matrix(
-            centroid_per_class, Query_y_labels)
+        centroid_matrix = self.get_centroid_matrix(centroid_per_class, Query_y_labels)
         Query_x = self.f(Query_x)
         m = Query_x.size(0)
         n = centroid_matrix.size(0)
+
         # The below expressions expand both the matrices such that they become compatible to each other in order to caclulate L2 distance.
         # Expanding centroid matrix to "m".
-        centroid_matrix = centroid_matrix.expand(
-            m, centroid_matrix.size(0), centroid_matrix.size(1))
-        Query_matrix = Query_x.expand(n, Query_x.size(0), Query_x.size(
-            1)).transpose(0, 1)  # Expanding Query matrix "n" times
-        Qx = torch.pairwise_distance(centroid_matrix.transpose(
-            1, 2), Query_matrix.transpose(1, 2))
+        centroid_matrix = centroid_matrix.expand(m, centroid_matrix.size(0), centroid_matrix.size(1))
+        Query_matrix = Query_x.expand(n, Query_x.size(0), Query_x.size(1)).transpose(0, 1)  # Expanding Query matrix "n" times
+        Qx = torch.pairwise_distance(centroid_matrix.transpose(1, 2), Query_matrix.transpose(1, 2))
         return Qx
 
 
 def train_step(protonet, datax, datay, Ns, Nc, Nq, optimizer):
     optimizer.zero_grad()
     Qx, Qy = protonet(datax, datay, Ns, Nc, Nq, np.unique(datay))
+
+    # Qx is a distance matrix from each Query point to each mean point
+    # We care about the centroid with the minimum distance, so take inverse of the diatnce matrix
+    Qx = Qx.max() - Qx
+
     pred = torch.log_softmax(Qx, dim=-1)
     loss = F.nll_loss(pred, Qy)
     loss.backward()
@@ -168,6 +176,11 @@ def train_step(protonet, datax, datay, Ns, Nc, Nq, optimizer):
 
 def test_step(protonet, datax, datay, Ns, Nc, Nq):
     Qx, Qy = protonet(datax, datay, Ns, Nc, Nq, np.unique(datay))
+
+    # Qx is a distance matrix from each Query point to each mean point
+    # We care about the centroid with the minimum distance, so take inverse of the diatnce matrix
+    Qx = Qx.max() - Qx
+
     pred = torch.log_softmax(Qx, dim=-1)
     loss = F.nll_loss(pred, Qy)
     acc = torch.mean((torch.argmax(pred, 1) == Qy).float())

@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 import cv2
 from tqdm import tqdm
 import multiprocessing as mp
+import os
 tqdm.pandas(desc="my bar!")
 
 
@@ -21,14 +22,20 @@ def read_alphabets(alphabet_directory, directory):
     """
     Reads all the characters from alphabet_directory and augment each image with 90, 180, 270 degrees of rotation.
     """
+    print(alphabet_directory)
+
     datax = None
     datay = []
     characters = os.listdir(alphabet_directory)
+
     for character in characters:
         images = os.listdir(alphabet_directory + character + '/')
         for img in images:
-            image = cv2.resize(cv2.imread(
-                alphabet_directory + character + '/' + img), (28, 28))
+            image = cv2.resize(cv2.imread(alphabet_directory + character + '/' + img), (28, 28))
+            # verified. images look fine
+            # plt.imshow(image)
+            # plt.show()
+
             image90 = image_rotate(image, 90)
             image180 = image_rotate(image, 180)
             image270 = image_rotate(image, 270)
