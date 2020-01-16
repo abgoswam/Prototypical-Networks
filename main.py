@@ -20,12 +20,12 @@ def main():
 
     # Reading the data
     print("Reading background images")
-    trainx, trainy = read_images(r'C:\_hackerreborn\Prototypical-Networks\input\omniglot\images_background')
+    trainx, trainy = read_images(r'D:\_hackerreborn\Prototypical-Networks\input\omniglot\images_background')
     print(trainx.shape)
     print(trainy.shape)
 
     print("Reading background images")
-    testx, testy = read_images(r'C:\_hackerreborn\Prototypical-Networks\input\omniglot\images_evaluation')
+    testx, testy = read_images(r'D:\_hackerreborn\Prototypical-Networks\input\omniglot\images_evaluation')
     print(testx.shape)
     print(testy.shape)
 
@@ -41,7 +41,7 @@ def main():
     print(trainx.size(), testx.size())
     # Set training iterations and display period
     num_episode = 16000
-    frame_size = 100
+    frame_size = 500
     trainx = trainx.permute(0, 3, 1, 2)
     testx = testx.permute(0, 3, 1, 2)
 
@@ -66,7 +66,8 @@ def main():
                   'Frame Loss: ', frame_loss.data.cpu().numpy().tolist() / frame_size,
                   'Frame Accuracy:', (frame_acc.data.cpu().numpy().tolist() * 100) / frame_size)
 
-            tb_writer.add_scalar('loss', frame_loss.data.cpu().numpy().tolist() / frame_size, ((i+1) // frame_size))
+            tb_writer.add_scalar('frame_loss', frame_loss.data.cpu().numpy().tolist() / frame_size, ((i+1) // frame_size))
+            tb_writer.add_scalar('frame_accuracy', frame_acc.data.cpu().numpy().tolist() / frame_size, ((i + 1) // frame_size))
 
             frame_loss = 0
             frame_acc = 0
