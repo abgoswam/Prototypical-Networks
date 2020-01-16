@@ -41,13 +41,13 @@ def main():
     print(trainx.size(), testx.size())
     # Set training iterations and display period
     num_episode = 16000
-    frame_size = 500
+    frame_size = 1000
     trainx = trainx.permute(0, 3, 1, 2)
     testx = testx.permute(0, 3, 1, 2)
 
     # Initializing prototypical net
     protonet = PrototypicalNet(use_gpu)
-    optimizer = optim.SGD(protonet.parameters(), lr=0.001, momentum=0.9)
+    optimizer = optim.SGD(protonet.parameters(), lr=0.01, momentum=0.99)
 
     # Training loop
     frame_loss = 0
@@ -67,7 +67,7 @@ def main():
                   'Frame Accuracy:', (frame_acc.data.cpu().numpy().tolist() * 100) / frame_size)
 
             tb_writer.add_scalar('frame_loss', frame_loss.data.cpu().numpy().tolist() / frame_size, ((i+1) // frame_size))
-            tb_writer.add_scalar('frame_accuracy', frame_acc.data.cpu().numpy().tolist() / frame_size, ((i + 1) // frame_size))
+            tb_writer.add_scalar('frame_accuracy', (frame_acc.data.cpu().numpy().tolist() * 100) / frame_size, ((i + 1) // frame_size))
 
             frame_loss = 0
             frame_acc = 0
